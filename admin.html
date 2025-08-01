@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Administración - TatoPhones</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .navbar {
+      background-color: #1A2533;
+    }
+    .table img {
+      width: 50px;
+      height: 50px;
+      object-fit: contain;
+      border-radius: 5px;
+      background-color: white;
+      border: 1px solid #dee2e6;
+    }
+    .badge {
+      font-size: 0.9em;
+      font-weight: 500;
+    }
+    .btn-edit {
+        margin-right: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav class="navbar navbar-dark shadow-sm">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">
+        <i class="fas fa-shield-alt me-2"></i>TatoPhones - Panel de Administración
+      </a>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2>Gestión de Productos</h2>
+      <button class="btn btn-primary" id="add-product-btn">
+        <i class="fas fa-plus me-1"></i> Añadir Nuevo Producto
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-striped table-hover align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>ID</th>
+            <th>Imagen</th>
+            <th>Nombre</th>
+            <th>Categoría</th>
+            <th>Precio</th>
+            <th>Stock</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="products-table-body">
+          </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="productModalLabel"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="product-form" novalidate>
+            <input type="hidden" id="product-id">
+            <div class="mb-3">
+              <label for="product-name" class="form-label">Nombre</label>
+              <input type="text" class="form-control" id="product-name" required>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="product-category" class="form-label">Categoría</label>
+                <select class="form-select" id="product-category" required>
+                  <option value="" disabled selected>Seleccione...</option>
+                  <option value="sealed">Sellado</option>
+                  <option value="semi-new">Semi Nuevo</option>
+                  <option value="accessories">Accesorio</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="product-status" class="form-label">Estado</label>
+                <select class="form-select" id="product-status" required>
+                  <option value="activo">Activo</option>
+                  <option value="pausado">Pausado</option>
+                  <option value="agotado">Agotado</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-8 mb-3">
+                <label for="product-price" class="form-label">Precio</label>
+                <input type="number" step="0.01" class="form-control" id="product-price" required>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="product-currency" class="form-label">Moneda</label>
+                <select class="form-select" id="product-currency" required>
+                  <option value="USD">USD</option>
+                  <option value="UYU">UYU</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="product-stock" class="form-label">Stock</label>
+              <input type="number" class="form-control" id="product-stock" required min="0">
+            </div>
+            <div class="mb-3">
+              <label for="product-img" class="form-label">URL de la Imagen Principal</label>
+              <input type="url" class="form-control" id="product-img" required placeholder="https://ejemplo.com/imagen.jpg">
+            </div>
+            <div class="mb-3">
+              <label for="product-details" class="form-label">Detalles (HTML <li>)</label>
+              <textarea class="form-control" id="product-details" rows="3" placeholder="<li>Detalle 1</li><li>Detalle 2</li>"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" form="product-form">Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const productsTableBody = document.getElementById('products-table-body');
+      const productModal = new bootstrap.Modal(document.getElementById('productModal'));
+      const productForm = document.getElementById('product-form');
+      const productModalLabel = document.getElementById('productModalLabel');
+      
+      let allProducts = []; // Caché para la data
+
+      const renderTable = () => {
+        productsTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Cargando...</td></tr>';
+        
+        fetch('api/get_products.php')
+          .then(response => response.json())
+          .then(data => {
+            allProducts = data.data;
+            productsTableBody.innerHTML = '';
+            if (allProducts.length === 0) {
+              productsTableBody.innerHTML = '<tr><td colspan="8" class="text-center">No hay productos. ¡Añade uno!</td></tr>';
+              return;
+            }
+
+            const statusBadges = {
+              activo: '<span class="badge bg-success">Activo</span>',
+              pausado: '<span class="badge bg-warning text-dark">Pausado</span>',
+              agotado: '<span class="badge bg-danger">Agotado</span>'
+            };
+
+            const categoryNames = {
+              sealed: 'Sellado', 'semi-new': 'Semi Nuevo', accessories: 'Accesorio'
+            };
+
+            allProducts.forEach(p => {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td>${p.id}</td>
+                <td><img src="${p.img}" alt="${p.name}"></td>
+                <td>${p.name}</td>
+                <td>${categoryNames[p.category] || 'N/A'}</td>
+                <td>${p.price} ${p.currency}</td>
+                <td>${p.stock}</td>
+                <td>${statusBadges[p.status] || ''}</td>
+                <td>
+                  <button class="btn btn-sm btn-info btn-edit" data-id="${p.id}"><i class="fas fa-edit"></i></button>
+                  <button class="btn btn-sm btn-danger btn-delete" data-id="${p.id}"><i class="fas fa-trash"></i></button>
+                </td>
+              `;
+              productsTableBody.appendChild(row);
+            });
+          })
+          .catch(error => {
+            productsTableBody.innerHTML = '<tr><td colspan="8" class="text-center">Error al cargar productos.</td></tr>';
+            console.error('Error fetching products:', error);
+            
+          });
+      };
+
+      const openModal = (productId = null) => {
+        productForm.reset();
+        if (productId) {
+          const product = allProducts.find(p => p.id == productId);
+          if (!product) return;
+          productModalLabel.textContent = 'Editar Producto';
+          document.getElementById('product-id').value = product.id;
+          document.getElementById('product-name').value = product.name;
+          document.getElementById('product-category').value = product.category;
+          document.getElementById('product-status').value = product.status;
+          document.getElementById('product-price').value = product.price;
+          document.getElementById('product-currency').value = product.currency;
+          document.getElementById('product-stock').value = product.stock;
+          document.getElementById('product-img').value = product.img;
+          document.getElementById('product-details').value = product.details;
+        } else {
+          productModalLabel.textContent = 'Añadir Nuevo Producto';
+          document.getElementById('product-id').value = '';
+        }
+        productModal.show();
+      };
+      
+      document.getElementById('add-product-btn').addEventListener('click', () => openModal());
+
+      productsTableBody.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.btn-edit');
+        if (editBtn) openModal(editBtn.dataset.id);
+        
+        const deleteBtn = e.target.closest('.btn-delete');
+        if (deleteBtn) {
+          if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+            const id = deleteBtn.dataset.id;
+            fetch('api/delete_product.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: id })
+            })
+            .then(response => response.json())
+            .then(result => {
+              if (result.status === 'success') renderTable();
+              else alert('Error: ' + result.message);
+            });
+          }
+        }
+      });
+      
+      productForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const productData = {
+          id: document.getElementById('product-id').value || null,
+          name: document.getElementById('product-name').value,
+          category: document.getElementById('product-category').value,
+          status: document.getElementById('product-status').value,
+          price: parseFloat(document.getElementById('product-price').value),
+          currency: document.getElementById('product-currency').value,
+          stock: parseInt(document.getElementById('product-stock').value),
+          img: document.getElementById('product-img').value,
+          details: document.getElementById('product-details').value
+        };
+
+        fetch('api/manage_product.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData)
+        })
+        .then(response => response.json())
+        .then(result => {
+          if(result.status === 'success') {
+            productModal.hide();
+            renderTable();
+          } else {
+            alert('Error al guardar: ' + result.message);
+          }
+        });
+      });
+
+      renderTable();
+    });
+  </script>
+</body>
+</html>
